@@ -1,0 +1,34 @@
+# A local bench for testing this app: MariaDB, Redis and the Frappe bench image.
+# The passwords here belong to throwaway local containers and guard nothing else.
+name: activationlab-dev
+
+services:
+  mariadb:
+    image: mariadb:10.11
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - mariadb:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+
+  bench:
+    image: frappe/bench:latest
+    command: sleep infinity
+    working_dir: /home/frappe
+    environment:
+      - SHELL=/bin/bash
+    volumes:
+      - work:/home/frappe/work
+    depends_on:
+      - mariadb
+      - redis
+
+volumes:
+  mariadb:
+  work:

@@ -1,0 +1,89 @@
+/* Activation Lab styles for the Frappe Learning app at /lms.
+   The page renderer of the activationlab app adds this file to every /lms page, after the app's own
+   stylesheet. learner.js sets these attributes on <html>:
+     data-al-page      home, courses, course, lesson, or other
+     data-al-enrolled  1 when the signed-in learner is enrolled in the course on screen
+     data-al-staff     1 for course staff and administrators
+   The class names below come from the Learning app's markup at version 2.63.0 (frontend/src at
+   commit 87168fc). When an update changes that markup, a rule stops matching and the page keeps
+   the Learning app's own look. No rule here can break a page. */
+
+/* Type: Inter for text and Instrument Serif for page headings, as on the website. */
+html {
+	font-family: "Inter", InterVar, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html[data-al-page] h1.text-4xl-semibold,
+html[data-al-page] h2.text-3xl-semibold,
+html[data-al-page="home"] h1.text-2xl-bold {
+	font-family: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+	font-weight: 400;
+	font-variation-settings: normal;
+	letter-spacing: -0.01em;
+	line-height: 1.12;
+}
+
+html[data-al-page] h1.text-4xl-semibold,
+html[data-al-page="home"] h1.text-2xl-bold {
+	font-size: clamp(2rem, 1.6rem + 1.4vw, 2.75rem);
+}
+
+html[data-al-page] h2.text-3xl-semibold {
+	font-size: clamp(1.625rem, 1.4rem + 0.8vw, 2.125rem);
+}
+
+/* Lessons: one reading column of about 70 characters, at the website's body size.
+   The Learning app sets lesson text at 14px across the whole column. */
+html[data-al-page="lesson"] .bg-surface-base.min-w-0 > div > .px-5 {
+	max-width: 46rem;
+	margin-inline: auto;
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose,
+.ProseMirror.prose:has(> #editor) {
+	font-size: 1.0625rem;
+	line-height: 1.7;
+}
+
+/* Learners do not need the learning streak, the profile prompt or the "Powered by" mark. */
+html:not([data-al-staff="1"]) button.bg-surface-amber-2[aria-label^="View learning streak"],
+html[data-al-page="home"]:not([data-al-staff="1"]) button.bg-surface-amber-2.rounded-md.px-2.py-1 {
+	display: none !important;
+}
+
+.bg-surface-sidebar .shadow-sm.rounded-md:has(.lucide-user),
+.bg-surface-sidebar a.justify-center:has(> .lucide-user),
+.bg-surface-sidebar .lucide-zap {
+	display: none !important;
+}
+
+/* Course page: "Published" is a note for staff. */
+html[data-al-page="course"]:not([data-al-staff="1"]) header.header-frame .rounded-full.bg-surface-green-2,
+html[data-al-page="course"]:not([data-al-staff="1"]) header.header-frame .rounded-full.text-ink-green-8 {
+	display: none !important;
+}
+
+/* Course page for an enrolled learner: the course to continue, not the offer.
+   The second selector of each pair needs no script: an enrolled learner's card links to a lesson. */
+html[data-al-page="course"][data-al-enrolled="1"] .min-w-80.max-w-sm .p-5 > .text-3xl-semibold:first-child,
+.min-w-80.max-w-sm:has(a[href*="/learn/"]) .p-5 > .text-3xl-semibold:first-child {
+	display: none !important;
+}
+
+html[data-al-page="course"][data-al-enrolled="1"] .md\:w-2\/3 div:has(> .lucide-users-round),
+html[data-al-page="course"][data-al-enrolled="1"] .md\:w-2\/3 div:has(> .lucide-users-round) + .lucide-dot,
+html[data-al-page="course"][data-al-enrolled="1"] .min-w-80.max-w-sm div:has(> .lucide-users),
+.min-w-80.max-w-sm:has(a[href*="/learn/"]) div:has(> .lucide-users) {
+	display: none !important;
+}
+
+/* Reviews with none written yet: hide "0 course rating & 0 user ratings" and keep "Write a Review",
+   so that learners can leave the first ones. */
+html[data-al-page="course"] .md\:w-2\/3 > div.mt-12:not(:has(article)) > div:first-child {
+	justify-content: flex-start;
+	margin-bottom: 0;
+}
+
+html[data-al-page="course"] .md\:w-2\/3 > div.mt-12:not(:has(article)) > div:first-child > div:first-child {
+	display: none !important;
+}

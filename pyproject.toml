@@ -1,0 +1,38 @@
+[project]
+name = "activationlab"
+authors = [
+    { name = "Activation Lab", email = "tech@activationlab.ai" }
+]
+description = "Course purchase through Stripe Checkout and learner pages for Frappe Learning"
+requires-python = ">=3.14"
+readme = "README.md"
+dynamic = ["version"]
+# Frappe, Learning, Payments and the Stripe library come with the bench. Listing them here would
+# block a deploy on Frappe Cloud and could clash with the Stripe version that Payments pins.
+dependencies = []
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=16.0.0,<17.0.0"
+
+[deploy.dependencies.apt]
+packages = []
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "UP", "B", "RUF"]
+ignore = [
+    "E501", # line too long
+    "W191", # indentation contains tabs
+]
+typing-modules = ["frappe.types.DF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
