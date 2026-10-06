@@ -217,7 +217,10 @@ def offer(course: str | None = None):
 	details = get_course((course or "").strip()) if course else None
 	if not details or not on_sale(details):
 		return None
-	lessons = frappe.get_all("Course Lesson", filters={"course": details.name}, fields=["include_in_preview"])
+	lessons = course_lessons(details.name)
+	previews = frappe.get_all(
+		"Course Lesson", filters={"name": ("in", lessons or [""]), "include_in_preview": 1}, pluck="name"
+	)
 	return {
 		"name": details.name,
 		"title": details.title,
@@ -225,8 +228,23 @@ def offer(course: str | None = None):
 		"amount": flt(details.course_price),
 		"currency": details.currency,
 		"lessons": len(lessons),
-		"preview_lessons": sum(1 for lesson in lessons if lesson.include_in_preview),
+		"preview_lessons": len(previews),
 	}
+
+
+def course_lessons(course: str) -> list[str]:
+	"""The lessons in the course's chapters, as the Learning app shows them. A lesson that names the
+	course but sits in none of its chapters, such as one left over from an earlier version, is left out."""
+	chapters = frappe.get_all(
+		"Chapter Reference", filters={"parent": course, "parenttype": "LMS Course"}, pluck="chapter"
+	)
+	if not chapters:
+		return []
+	return frappe.get_all(
+		"Lesson Reference",
+		filters={"parent": ("in", chapters), "parenttype": "Course Chapter"},
+		pluck="lesson",
+	)
 
 
 @frappe.whitelist()
@@ -493,9 +511,10 @@ def reverse(payment_intent: str) -> bool:
 	"""Take back what a refunded or disputed payment gave: the LMS Payment is no longer received, and
 	the enrolment that it paid for is removed. Return True when this call made the change.
 
-	Any refund, in full or in part, and any dispute count. Staff who want the learner to keep the
-	course after a partial refund enrol them again by hand. An enrolment that another received
-	payment covers moves to that payment and stays. An enrolment made by hand, with no payment, stays.
+	A full refund and any dispute count. The school's rule is a full refund within 2 days of the
+	purchase. A partial refund, which the rule does not give, leaves the course open; a later refund
+	of the rest counts. An enrolment that another received payment covers moves to that payment and
+	stays. An enrolment made by hand, with no payment, stays.
 	"""
 	row = frappe.db.get_value(
 		"LMS Payment", {"payment_id": payment_intent}, ["name", "member", "al_reversal"], as_dict=True
@@ -550,13 +569,16 @@ def reverse(payment_intent: str) -> bool:
 
 
 def money_returned(payment_intent) -> str | None:
-	"""REFUNDED or DISPUTED when Stripe no longer holds all of a payment, otherwise None."""
+	"""DISPUTED when the payment is disputed, REFUNDED when it was refunded in full, otherwise None.
+	A partial refund leaves the course open."""
 	charge = getattr(payment_intent, "latest_charge", None)
 	if not charge or isinstance(charge, str):
 		return None
 	if getattr(charge, "disputed", False):
 		return DISPUTED
-	if getattr(charge, "refunded", False) or (getattr(charge, "amount_refunded", 0) or 0) > 0:
+	refunded = getattr(charge, "amount_refunded", 0) or 0
+	paid = getattr(charge, "amount_captured", None) or getattr(charge, "amount", 0) or 0
+	if getattr(charge, "refunded", False) or (paid and refunded >= paid):
 		return REFUNDED
 	return None
 

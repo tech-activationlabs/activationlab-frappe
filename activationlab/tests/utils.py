@@ -221,9 +221,10 @@ class FakeStripe:
 		self.payment_intent_of(session_id)["status"] = "requires_payment_method"
 
 	def refund(self, session_id, amount=None):
-		"""Staff refund in the Stripe Dashboard, in full or in part."""
+		"""Staff refund in the Stripe Dashboard: the rest of the payment, or a part of it. Stripe adds each
+		refund to the charge's amount_refunded."""
 		charge = self.payment_intent_of(session_id)["latest_charge"]
-		charge["amount_refunded"] = amount or charge["amount"]
+		charge["amount_refunded"] += amount or charge["amount"] - charge["amount_refunded"]
 		charge["refunded"] = charge["amount_refunded"] >= charge["amount"]
 		self.reversals.append(self.sessions[session_id]["payment_intent"])
 

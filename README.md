@@ -30,7 +30,7 @@ When a course's price, currency, paid flag, published flag or self-learning flag
 
 ## Refunds and disputes
 
-Refund in the Stripe Dashboard. Nothing else is needed on the site.
+Refund in full in the Stripe Dashboard. Nothing else is needed on the site.
 
 Within the hour the job finds the refund, and for that payment:
 
@@ -38,7 +38,7 @@ Within the hour the job finds the refund, and for that payment:
 - the LMS Enrollment that the payment paid for is deleted, so the learner loses the course;
 - a line in the LMS Payment's timeline says what was done.
 
-Any refund counts, in full or in part, and so does any dispute, even one the school later wins. To let a learner keep the course after a partial refund, a staff member enrols them again by hand. An enrolment that another received payment covers moves to that payment and stays. An enrolment made by hand, with no payment, stays.
+The school's rule, set by the project team on 2026-10-06, is a full refund when a learner asks within 2 days of buying. A full refund counts, and so does any dispute, even one the school later wins. A partial refund, which the rule does not give, leaves the course open; a later refund of the rest counts. An enrolment that another received payment covers moves to that payment and stays. An enrolment made by hand, with no payment, stays.
 
 The Learning app lets a learner enrol themselves in a paid course when they have a received LMS Payment for it. A reversed payment is not received, so this is closed too. A refunded learner who wants the course again buys it again on a new payment.
 

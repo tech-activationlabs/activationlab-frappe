@@ -502,18 +502,32 @@ class TestCheckout(CheckoutTestCase):
 		self.assertFalse(self.enrolments())
 		self.assertEqual([p.al_reversal or None for p in self.payments()], ["Refunded", None])
 
-	def test_partial_refund_and_dispute_take_back_access(self):
+	def test_partial_refund_keeps_the_course_and_a_refund_of_the_rest_takes_it_back(self):
 		session_id = self.paid_and_enrolled()
 		self.stripe.refund(session_id, amount=5000)
+		summary = checkout.reconcile()
+		self.assertEqual(summary.reversed, [])
+		self.assertEqual([(p.payment_received, p.al_reversal or None) for p in self.payments()], [(1, None)])
+		self.assertEqual(len(self.enrolments()), 1)
+
+		self.stripe.refund(session_id)
 		checkout.reconcile()
 		self.assertEqual(self.payments()[0].al_reversal, "Refunded")
 		self.assertFalse(self.enrolments())
 
-		other_id = self.paid_and_enrolled(OTHER_LEARNER)
-		self.stripe.dispute(other_id)
+	def test_partial_refund_before_the_return_still_enrols(self):
+		session_id = self.bought_session()
+		self.stripe.pay(session_id)
+		self.stripe.refund(session_id, amount=5000)
+		self.complete(session_id)
+		self.assertEqual(len(self.enrolments()), 1)
+
+	def test_dispute_takes_back_access(self):
+		session_id = self.paid_and_enrolled()
+		self.stripe.dispute(session_id)
 		checkout.reconcile()
-		self.assertEqual(self.payments(OTHER_LEARNER)[0].al_reversal, "Disputed")
-		self.assertFalse(self.enrolments(OTHER_LEARNER))
+		self.assertEqual(self.payments()[0].al_reversal, "Disputed")
+		self.assertFalse(self.enrolments())
 
 	def test_refund_of_one_of_two_payments_keeps_the_enrolment(self):
 		first_id, second_id = self.two_paid_checkouts()
@@ -685,6 +699,23 @@ class TestCheckout(CheckoutTestCase):
 		frappe.db.set_value("LMS Course", self.course, "published", 0)
 		self.assertIsNone(self.call(checkout.offer, "Guest", course=self.course))
 		self.assertIsNone(self.call(checkout.offer, "Guest", course="no-such-course"))
+
+	def test_offer_counts_only_the_lessons_in_the_chapters(self):
+		# A lesson left over from an earlier version names the course and a chapter, but the chapter no
+		# longer lists it, as on the course platform after lessons were rebuilt.
+		chapter = frappe.db.get_value("Chapter Reference", {"parent": self.course}, "chapter")
+		frappe.get_doc(
+			{
+				"doctype": "Course Lesson",
+				"course": self.course,
+				"chapter": chapter,
+				"title": "Old lesson",
+				"include_in_preview": 1,
+			}
+		).insert(ignore_permissions=True)
+		self.assertEqual(frappe.db.count("Course Lesson", {"course": self.course, "include_in_preview": 1}), 3)
+		offer = self.call(checkout.offer, "Guest", course=self.course)
+		self.assertEqual((offer["lessons"], offer["preview_lessons"]), (3, 2))
 
 	# landing and amounts
 
