@@ -28,6 +28,7 @@ from frappe.website.page_renderers.template_page import TemplatePage
 from werkzeug.utils import redirect
 from werkzeug.wrappers import Response
 
+from activationlab.branding import brand_icons
 from activationlab.utils import BUY_PATH, buy_url, is_staff, lms_path, login_url
 
 LMS_ENDPOINT = "_lms"
@@ -136,6 +137,7 @@ def add_learner_tags(response):
 	html = response.get_data(as_text=True)
 	if "</head>" not in html or MARKER in html:
 		return
+	html = brand_icons(html)
 	response.set_data(html.replace("</head>", learner_tags() + "</head>", 1))
 
 

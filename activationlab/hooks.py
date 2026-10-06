@@ -22,6 +22,8 @@ page_renderer = ["activationlab.lms_page.LMSPage"]
 override_whitelisted_methods = {
 	"lms.lms.payments.get_payment_link": "activationlab.checkout.get_payment_link",
 	"payments.templates.pages.stripe_checkout.make_payment": "activationlab.checkout.refuse_card_token_payment",
+	# The installable app's manifest with Activation Lab's icons. See branding.py.
+	"lms.lms.api.get_pwa_manifest": "activationlab.branding.get_pwa_manifest",
 }
 
 # The public website's forms may read this site's reply. See website_forms.py.

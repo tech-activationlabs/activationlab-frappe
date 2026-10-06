@@ -4,7 +4,7 @@ A Frappe app for the Activation Lab course platform. It runs beside Frappe Learn
 
 1. **Course purchase through Stripe Checkout.** The learner pays on Stripe's own page. The app takes the price from the course on the server, records an LMS Payment, checks the paid session with Stripe, and enrols the learner. It replaces the Payments app's card form, which Stripe refuses since card tokens on the Charges API reached end of life.
 2. **Sign-in with a way back.** A signed-out visitor to any `/lms` address goes to the sign-up page and returns to that address afterwards. A link to a course, badge or profile that someone shares still shows its title, description and image in the preview.
-3. **Learner pages.** A stylesheet and a script go into every `/lms` page: a reading column for lessons, the website's fonts, and fewer distractions for learners.
+3. **Learner pages.** A stylesheet and a script go into every `/lms` page and give the course platform the website's look: its colours, type, cards and buttons, a course page that sells, a reading view for lessons, and fewer distractions for learners.
 
 Nothing in the app names a course. Every published paid course on the site is sold the same way.
 
@@ -100,15 +100,34 @@ For a signed-in user, the app's page renderer serves the Learning app's own `/lm
 - `window.activationlab`: the Learning app's path, the buy address, whether the user is staff, the published paid courses and the user's enrolled courses.
 - The Google Fonts Instrument Serif and Inter.
 
-What a learner sees:
+### The look
 
-- Lesson text at 17px in a column of about 46rem, in place of 14px across the whole width.
-- Page headings in Instrument Serif, text in Inter, as on the website.
-- No learning streak button, no "Complete your profile" card, no "Powered by Frappe Learning" mark.
-- On the course page: no "Published" badge for anyone but staff; for an enrolled learner no price and no student count; with no reviews yet, no "0 course rating" line, and "Write a Review" stays.
-- On a locked lesson of a paid course, "Start Learning" reads "Buy this course" and goes to the checkout.
+The course platform takes the website's look: a white page, near-black ink, lavender fills, violet for progress and the current place, Instrument Serif for titles and Inter for text, 24px cards with a soft violet shadow, and dark pill buttons.
 
-The selectors come from Frappe Learning 2.63.0 (`frontend/src` at commit `87168fc`). After an LMS update, a rule that no longer matches leaves that part of the page as the Learning app draws it. Check the course page, a lesson and a locked lesson after each update.
+- Colours come from the Learning app's own tokens (`--surface-*`, `--ink-*`, `--outline-*`), redefined under `html[data-al-page]`, once for the light theme and once for the dark theme. One value restyles every component that uses it, staff tools included. The dark theme keeps the website's character: violet-black grounds, lavender in place of violet, and a light pill as the main button.
+- App shell: the website's brand mark and name in the sidebar when Website Settings has no banner image, lavender for the current page, a violet unread count, a 56px translucent header, and a phone tab bar with the current tab on a lavender pill.
+- Course page: a glow behind the title, the eyebrow "Course", the title at up to 64px, the short introduction as a lede, and a product card with the price in the serif, a full-width "Buy this course" pill and "Try the free lessons". Each chapter is a card with "Chapter N", a chip "Free preview" or "Opens when you buy", and numbered lesson rows; lessons that open only after purchase show a lock. The description's first list becomes a "What you get" card with check marks.
+- Enrolled learner: no price and no counts; "N of M lessons done" over a violet bar in the card; finished lessons end in a violet check; reviews as cards, with no average above them.
+- Lesson: a 680px reading column at 17px, the outline in a fixed column on the website's wash, "Chapter N · Lesson M" over the title ("Free preview · " first on a free lesson of a course on offer), a toolbar above the title, and a "Next lesson" card after the text that clicks the app's own Next. A locked lesson shows one centred card with a violet lock and "Buy this course".
+- Course cards on the catalogue, the home page and related courses: the image, or the title in the serif on the website's glow, the lesson count, the introduction, the instructor and the price. No rating, no learner count, no award icon. A learner's own course shows progress and no price, and "Completed" when done. On the home page the first unfinished course is a wide card under "Continue learning".
+- Notifications, profile and the phone's You page take the same type, pills and cards.
+- On a phone, a bar with the price and the card's action stays above the tab bar once the card's own button scrolls out of view.
+
+Learners see no learner count and no average rating anywhere: at launch the numbers read 0 or 1. Each written review keeps the stars its author chose. Staff keep every count.
+
+### What the script adds
+
+`learner.js` marks `<html>` with the page kind (`home`, `courses`, `course`, `lesson`, `profile`, `you`, `other`), the course, enrolment, whether the course is paid, whether the learner has any course and the lesson's chapter and lesson numbers. It reads each course's outline once per page load from the Learning app's own read-only method, `lms.lms.utils.get_course_outline`, and adds:
+
+1. The chips and the locks on the course page and in the lesson outline, for a paid course the learner has not bought.
+2. "Try the free lessons" after the buy button, linking to the first free lesson.
+3. The "Next lesson" card, only when the app shows its own Next control.
+4. "N of M lessons done" in the card of an enrolled learner.
+5. The phone action bar, whose button clicks the card's own action.
+
+Each addition checks for the element it needs and does nothing when it is missing. Each node it adds carries `data-al-added`, and goes away when the element it belongs to is gone. It removes, moves or rewrites no node of the Learning app, apart from the label of the lock card's button. Lesson progress is the Learning app's own: a lesson is done after the learner stays on it for LMS Settings > Lesson Dwell Time seconds, at the end of a video, or when its quiz is passed.
+
+The selectors come from Frappe Learning 2.63.0 (`frontend/src` at commit `87168fc`). Every rule starts with `html[data-al-page]`, which only the script sets, so a page where the script does not run keeps the Learning app's look. After an LMS update, a rule that no longer matches leaves that part of the page as the Learning app draws it. Check the catalogue, the course page as a new and an enrolled learner, a lesson, a locked lesson and the home page after each update, at phone and desktop width, in both themes: `dev/capture.py` takes them all.
 
 ## Deploy on Frappe Cloud
 
@@ -167,6 +186,22 @@ The first run takes some minutes. Later runs reuse the bench. Most tests undo th
 
 On an existing bench: `bench --site SITE set-config allow_tests true`, then `bench --site SITE run-tests --app activationlab`.
 
+## See the learner pages locally
+
+The test bench can also serve the Learning app's real frontend to a browser on the Mac, with courses and learners like the platform's:
+
+```bash
+dev/serve.sh                 # build the real Learning frontend, fill the site, serve http://test.localhost:8710/lms
+dev/serve.sh sync            # after a change to the app's files, such as learner.css
+python3 dev/capture.py OUT   # full-page screenshots of each learner view at 1440 and 390 wide
+dev/serve.sh stop
+```
+
+- `dev/build-lms-frontend.sh` builds the Learning frontend in the container, as its own `yarn build` does. `setup-bench.sh` runs it when `ACTIVATIONLAB_REAL_LMS=1`; otherwise the bench keeps a stand-in page template, and a bench that has the real one keeps it.
+- `dev/seed.py` makes the website's paid course with its five lessons and a quiz, a free course, a learner with no course and a learner with two lessons done, and the platform's settings. It works on `test.localhost` only and is safe to run twice. The users and their passwords are in `dev/local-site.json`.
+- `dev/capture.py --list` lists the views. `--theme dark` takes the dark theme and `--html` also saves each rendered page. It needs Google Chrome and the Python packages `websocket-client` and `Pillow`.
+- The server is the `web` service of `dev/docker-compose.yml`, in the profile `web`, so `docker compose up` and `dev/test.sh` leave it out. It listens on the Mac's loopback address only. It runs no background workers and no realtime server.
+
 ## Files
 
 | File | Holds |
@@ -179,7 +214,7 @@ On an existing bench: `bench --site SITE set-config allow_tests true`, then `ben
 | `activationlab/website_forms.py` | The website's address on the replies to its forms |
 | `activationlab/public/` | The learner stylesheet and script |
 | `activationlab/tests/` | The Python tests, the script and stylesheet tests (`*.test.cjs`) and their helpers |
-| `dev/` | The local bench for the tests, and `publish.sh`, which publishes the app to GitHub |
+| `dev/` | The local bench for the tests and for the learner pages (`serve.sh`, `seed.py`, `capture.py`), and `publish.sh`, which publishes the app to GitHub |
 
 ## Licence
 

@@ -1,89 +1,1856 @@
 /* Activation Lab styles for the Frappe Learning app at /lms.
    The page renderer of the activationlab app adds this file to every /lms page, after the app's own
-   stylesheet. learner.js sets these attributes on <html>:
-     data-al-page      home, courses, course, lesson, or other
-     data-al-enrolled  1 when the signed-in learner is enrolled in the course on screen
-     data-al-staff     1 for course staff and administrators
+   stylesheet. learner.js sets these on <html>:
+     data-al-page        home, courses, course, lesson, profile, you, or other
+     data-al-course      the course on screen
+     data-al-enrolled    1 when the signed-in learner is enrolled in the course on screen
+     data-al-paid        1 when the course on screen is a published paid course
+     data-al-courses     1 when the learner is enrolled in any course
+     data-al-staff       1 for course staff and administrators
+     data-al-actionbar   1 while the phone action bar is shown
+     --al-lesson-label   "Chapter 2 · Lesson 1" on a lesson page, as a CSS string
+   It also marks course outline rows with data-al-locked, chapters with data-al-chip, and every node it
+   adds with data-al-added.
+   Every rule starts with html[data-al-page], which only learner.js sets, apart from the two rules that
+   drop the price from an enrolled learner's card. If the script does not run, the page keeps the
+   Learning app's own look.
    The class names below come from the Learning app's markup at version 2.63.0 (frontend/src at
-   commit 87168fc). When an update changes that markup, a rule stops matching and the page keeps
-   the Learning app's own look. No rule here can break a page. */
+   commit 87168fc). When an update changes that markup, a rule stops matching and that part of the
+   page keeps the Learning app's own look. No rule here can break a page. */
 
-/* Type: Inter for text and Instrument Serif for page headings, as on the website. */
-html {
-	font-family: "Inter", InterVar, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+/* ------------------------------------------------------------------------------------------------
+   Brand tokens, from the website's styles.css.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page] {
+	--al-serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+	--al-sans: "Inter", InterVar, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+	--al-bg: #ffffff;
+	--al-card: #ffffff;
+	--al-wash: #faf8ff;
+	--al-ink: #15121c;
+	--al-ink-2: #2b2734;
+	--al-ink-3: #46414f;
+	--al-muted: #5d5868;
+	--al-meta: #6b6676;
+	--al-soft: #8a8597;
+	--al-line: #ebe9f0;
+	--al-line-strong: #dad7e0;
+	--al-fill: #efe7ff;
+	--al-fill-hover: #f6f2ff;
+	--al-accent: #5b3fd6;
+	--al-on-accent: #ffffff;
+	--al-track: #efe7ff;
+	--al-button: #15121c;
+	--al-on-button: #ffffff;
+	--al-button-hover: #000000;
+	--al-segment: #ffffff;
+
+	--al-radius-sm: 14px;
+	--al-radius-md: 20px;
+	--al-radius: 24px;
+	--al-radius-lg: 32px;
+	--al-radius-media: 16px;
+
+	--al-shadow: 0 1px 2px rgba(21, 18, 28, 0.04), 0 14px 40px rgba(76, 56, 160, 0.08);
+	--al-shadow-lift: 0 2px 4px rgba(21, 18, 28, 0.05), 0 24px 60px rgba(76, 56, 160, 0.14);
+	--al-shadow-button: 0 8px 24px rgba(21, 18, 28, 0.18);
+	--al-shadow-bar: 0 -8px 24px rgba(76, 56, 160, 0.08);
+
+	/* The website's glow, drawn as a background with no blur filter. */
+	--al-glow:
+		radial-gradient(40% 45% at 22% 30%, rgba(201, 182, 255, 0.55), transparent 70%),
+		radial-gradient(35% 40% at 78% 25%, rgba(243, 201, 248, 0.5), transparent 70%),
+		radial-gradient(45% 50% at 55% 75%, rgba(188, 196, 255, 0.45), transparent 72%);
+	--al-band: linear-gradient(180deg, rgba(239, 231, 255, 0.9), rgba(255, 225, 238, 0.75));
+	/* Laid over the glow, so that it fades into the page instead of ending in an edge. */
+	--al-fade: linear-gradient(180deg, transparent 45%, var(--al-bg) 96%);
+	/* The glow for a small panel, such as a course card without an image. */
+	--al-panel:
+		radial-gradient(90% 120% at 0% 0%, rgba(201, 182, 255, 0.7), transparent 62%),
+		radial-gradient(80% 110% at 100% 8%, rgba(243, 201, 248, 0.62), transparent 62%),
+		radial-gradient(100% 90% at 62% 112%, rgba(188, 196, 255, 0.6), transparent 66%),
+		linear-gradient(var(--al-wash), var(--al-wash));
+	--al-mark: conic-gradient(from 200deg, #5b3fd6, #f3c9f8, #bcc4ff, #5b3fd6);
+
+	--al-gutter: clamp(16px, 4vw, 40px);
+	--al-container: 1180px;
+	--al-measure: 42.5rem;
+	--header-frame-h: 3.5rem;
+
+	/* Lucide icons (ISC licence), drawn with mask-image and background-color. */
+	--al-icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+	--al-icon-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='16' r='1'/%3E%3Crect x='3' y='10' width='18' height='12' rx='2'/%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3'/%3E%3C/svg%3E");
+	--al-icon-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='m12 5 7 7-7 7'/%3E%3C/svg%3E");
+
+	font-family: var(--al-sans);
 }
+
+/* The same tokens for the Learning app's dark theme. Learners pick it under Colour mode. */
+html[data-al-page][data-theme="dark"] {
+	--al-bg: #121019;
+	--al-card: #1b1824;
+	--al-wash: #17141f;
+	--al-ink: #f3f0fa;
+	--al-ink-2: #ddd8e8;
+	--al-ink-3: #c6c0d2;
+	--al-muted: #b3adc0;
+	--al-meta: #9d97ab;
+	--al-soft: #857f93;
+	--al-line: #2b2735;
+	--al-line-strong: #3a3546;
+	--al-fill: #2a2142;
+	--al-fill-hover: #211b30;
+	--al-accent: #c9b6ff;
+	--al-on-accent: #15121c;
+	--al-track: #2a2142;
+	--al-button: #f3f0fa;
+	--al-on-button: #15121c;
+	--al-button-hover: #ffffff;
+	--al-segment: #342e45;
+
+	--al-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 40px rgba(0, 0, 0, 0.35);
+	--al-shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.45), 0 24px 60px rgba(0, 0, 0, 0.45);
+	--al-shadow-button: 0 8px 24px rgba(0, 0, 0, 0.4);
+	--al-shadow-bar: 0 -8px 24px rgba(0, 0, 0, 0.35);
+
+	--al-glow:
+		radial-gradient(40% 45% at 22% 30%, rgba(91, 63, 214, 0.3), transparent 70%),
+		radial-gradient(35% 40% at 78% 25%, rgba(176, 88, 190, 0.2), transparent 70%),
+		radial-gradient(45% 50% at 55% 75%, rgba(88, 104, 214, 0.22), transparent 72%);
+	--al-band: linear-gradient(180deg, #2a2142, #2e1f33);
+	--al-fade: linear-gradient(180deg, transparent 45%, var(--al-bg) 96%);
+	--al-panel:
+		radial-gradient(90% 120% at 0% 0%, rgba(91, 63, 214, 0.42), transparent 62%),
+		radial-gradient(80% 110% at 100% 8%, rgba(176, 88, 190, 0.28), transparent 62%),
+		radial-gradient(100% 90% at 62% 112%, rgba(88, 104, 214, 0.32), transparent 66%),
+		linear-gradient(var(--al-wash), var(--al-wash));
+}
+
+/* ------------------------------------------------------------------------------------------------
+   The Learning app's own colour tokens. Every colour class of the app reads one of these, so one
+   value restyles every component that uses it, staff tools included. Tokens not named here keep the
+   Learning app's values, among them green, red, amber and blue.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page]:not([data-theme="dark"]) {
+	--surface-sidebar: var(--al-wash);
+	--surface-gray-1: #f8f6fc;
+	--surface-gray-2: #f2f0f7;
+	--surface-gray-3: #eae7f1;
+	--surface-gray-4: #dedae6;
+	--surface-gray-8: #46414f;
+	--surface-gray-9: #2b2734;
+	--surface-gray-10: var(--al-button);
+	--ink-gray-9: var(--al-ink);
+	--ink-gray-8: var(--al-ink-2);
+	--ink-gray-7: var(--al-ink-3);
+	--ink-gray-6: var(--al-muted);
+	--ink-gray-5: var(--al-meta);
+	--ink-gray-4: var(--al-soft);
+	--ink-blue-link: var(--al-accent);
+	--outline-gray-1: var(--al-line);
+	--outline-gray-2: var(--al-line);
+	--outline-gray-3: var(--al-line-strong);
+	--focus-default: 0 0 0 4px rgba(91, 63, 214, 0.14);
+}
+
+html[data-al-page][data-theme="dark"] {
+	--surface-base: var(--al-bg);
+	--surface-sidebar: var(--al-wash);
+	--surface-gray-1: #17141f;
+	--surface-gray-2: #1f1b29;
+	--surface-gray-3: #2a2536;
+	--surface-gray-4: #342e42;
+	--surface-gray-8: #c6c0d2;
+	--surface-gray-9: #ddd8e8;
+	--surface-gray-10: var(--al-button);
+	--surface-elevation-1: var(--al-card);
+	--surface-elevation-2: #201c2a;
+	--surface-elevation-3: #2a2536;
+	--ink-base: var(--al-on-button);
+	--ink-gray-9: var(--al-ink);
+	--ink-gray-8: var(--al-ink-2);
+	--ink-gray-7: var(--al-ink-3);
+	--ink-gray-6: var(--al-muted);
+	--ink-gray-5: var(--al-meta);
+	--ink-gray-4: var(--al-soft);
+	--ink-blue-link: var(--al-accent);
+	--outline-gray-1: var(--al-line);
+	--outline-gray-2: var(--al-line);
+	--outline-gray-3: var(--al-line-strong);
+	--focus-default: 0 0 0 4px rgba(201, 182, 255, 0.22);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Type: Instrument Serif for headings, Inter for text, as on the website.
+   ------------------------------------------------------------------------------------------------ */
 
 html[data-al-page] h1.text-4xl-semibold,
 html[data-al-page] h2.text-3xl-semibold,
 html[data-al-page="home"] h1.text-2xl-bold {
-	font-family: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+	font-family: var(--al-serif);
 	font-weight: 400;
 	font-variation-settings: normal;
 	letter-spacing: -0.01em;
 	line-height: 1.12;
+	text-wrap: balance;
+	color: var(--al-ink);
 }
 
-html[data-al-page] h1.text-4xl-semibold,
-html[data-al-page="home"] h1.text-2xl-bold {
+html[data-al-page] h1.text-4xl-semibold {
 	font-size: clamp(2rem, 1.6rem + 1.4vw, 2.75rem);
 }
 
 html[data-al-page] h2.text-3xl-semibold {
-	font-size: clamp(1.625rem, 1.4rem + 0.8vw, 2.125rem);
+	font-size: clamp(26px, 2.6vw, 34px);
+	line-height: 1.15;
 }
 
-/* Lessons: one reading column of about 70 characters, at the website's body size.
-   The Learning app sets lesson text at 14px across the whole column. */
-html[data-al-page="lesson"] .bg-surface-base.min-w-0 > div > .px-5 {
-	max-width: 46rem;
-	margin-inline: auto;
+/* ------------------------------------------------------------------------------------------------
+   Shared recipes.
+   ------------------------------------------------------------------------------------------------ */
+
+/* Eyebrow: a small uppercase label over a title. */
+html[data-al-page="course"] section:has(> h1)::before,
+html[data-al-page="lesson"] .px-5 div:has(> h1.text-4xl-semibold)::before,
+html[data-al-page="course"] .chapter-item > button > div:nth-child(2)::before,
+html[data-al-page="home"][data-al-courses="1"] div.grid > a:first-child:has(.short-introduction + .rounded-full):not(:has([style*="width: 100%"])) > div > div:last-child::before,
+html[data-al-page] .al-next-label {
+	display: block;
+	font: 500 12px/1.4 var(--al-sans);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--al-meta);
 }
 
-html[data-al-page="lesson"] .ProseMirror.prose,
-.ProseMirror.prose:has(> #editor) {
-	font-size: 1.0625rem;
-	line-height: 1.7;
+/* Buttons. frappe-ui Buttons carry rounded-4 with inline-flex; they become pills. */
+html[data-al-page] button.inline-flex.rounded-4 {
+	border-radius: 999px;
+}
+
+html[data-al-page] button.inline-flex.rounded-4.bg-surface-gray-10 {
+	box-shadow: var(--al-shadow-button);
+}
+
+/* The subtle variant becomes the website's light pill. */
+html[data-al-page] button.inline-flex.rounded-4.bg-surface-gray-2 {
+	background: var(--al-card);
+	border: 1px solid var(--al-line-strong);
+}
+
+html[data-al-page] button.inline-flex.rounded-4.bg-surface-gray-2:hover {
+	background: var(--al-wash);
+}
+
+/* Buttons the script adds. */
+html[data-al-page] .al-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 48px;
+	padding: 0 24px;
+	border-radius: 999px;
+	border: 1px solid transparent;
+	font: 500 15px/1 var(--al-sans);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+html[data-al-page] .al-btn-light {
+	background: var(--al-card);
+	color: var(--al-ink);
+	border-color: var(--al-line-strong);
+}
+
+html[data-al-page] .al-btn-light:hover {
+	background: var(--al-wash);
+}
+
+/* Segmented controls (frappe-ui TabButtons): pills on a tinted track. */
+html[data-al-page] [role="radiogroup"] > div:has(> [data-slot="tab-button"]) {
+	padding: 3px;
+	gap: 2px;
+	border-radius: 999px;
+}
+
+html[data-al-page] [data-slot="tab-button"],
+html[data-al-page] [data-slot="tab-button"] > span {
+	border-radius: 999px;
+}
+
+html[data-al-page] [data-slot="tab-button"] > span {
+	min-height: 30px;
+	padding-inline: 14px;
+	font: 500 13.5px/1 var(--al-sans);
+}
+
+html[data-al-page] [data-slot="tab-button"][data-state="checked"] > span {
+	background: var(--al-segment);
+	color: var(--al-ink);
+	box-shadow: 0 1px 2px rgba(21, 18, 28, 0.08), 0 4px 12px rgba(76, 56, 160, 0.1);
+}
+
+/* Focus, as on the website. */
+html[data-al-page] :focus-visible {
+	outline: 2px solid var(--al-accent);
+	outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------------------------------------
+   App shell: sidebar, page header and the phone tab bar.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page] .bg-surface-sidebar {
+	border-color: var(--al-line);
+}
+
+/* The brand mark replaces the Learning logo when Website Settings has no banner image. */
+html[data-al-page] .bg-surface-sidebar button[aria-haspopup="menu"]:not(:has(> img)) > svg:first-child {
+	display: none;
+}
+
+html[data-al-page] .bg-surface-sidebar button[aria-haspopup="menu"]:not(:has(> img))::before {
+	content: "";
+	flex: none;
+	width: 28px;
+	height: 28px;
+	margin-inline-start: 2px;
+	border-radius: 50%;
+	background: var(--al-mark);
+	box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.55);
+}
+
+html[data-al-page] .bg-surface-sidebar button[aria-haspopup="menu"] .text-p-base-medium {
+	font: 400 21px/1.1 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page] .bg-surface-sidebar button[aria-haspopup="menu"] .text-p-sm {
+	margin-top: 1px;
+	font-size: 12.5px;
+	color: var(--al-meta);
+}
+
+html[data-al-page] .bg-surface-sidebar nav button {
+	height: 36px;
+	border-radius: 10px;
+	color: var(--al-ink-3);
+}
+
+html[data-al-page] .bg-surface-sidebar nav button .text-p-sm {
+	font: 500 14px/1.2 var(--al-sans);
+}
+
+html[data-al-page] .bg-surface-sidebar nav button svg {
+	width: 18px;
+	height: 18px;
+	color: var(--al-meta);
+}
+
+html[data-al-page] .bg-surface-sidebar nav button:hover {
+	background: var(--al-fill-hover);
+}
+
+html[data-al-page] .bg-surface-sidebar nav button.bg-surface-elevation-3 {
+	background: var(--al-fill);
+	box-shadow: none;
+	color: var(--al-ink);
+}
+
+html[data-al-page] .bg-surface-sidebar nav button.bg-surface-elevation-3 svg {
+	color: var(--al-accent);
+}
+
+/* The unread count, as a small violet pill. */
+html[data-al-page] [data-notifications-trigger] .text-p-xs {
+	min-width: 20px;
+	padding: 0 6px;
+	border-radius: 999px;
+	background: var(--al-accent);
+	color: var(--al-on-accent);
+	font: 600 11px/20px var(--al-sans);
+	text-align: center;
+}
+
+/* Page header. */
+html[data-al-page] header.header-frame {
+	background: color-mix(in srgb, var(--al-bg) 82%, transparent);
+	-webkit-backdrop-filter: saturate(160%) blur(14px);
+	backdrop-filter: saturate(160%) blur(14px);
+	border-color: var(--al-line);
+}
+
+html[data-al-page] header.header-frame .text-lg-medium {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+html[data-al-page] header.header-frame a[aria-current="page"] {
+	color: var(--al-ink);
+}
+
+html[data-al-page] header.header-frame a[aria-label="Back"] {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 999px;
+}
+
+/* Phone tab bar. */
+html[data-al-page] nav[aria-label="Primary"] {
+	background: color-mix(in srgb, var(--al-bg) 88%, transparent);
+	-webkit-backdrop-filter: blur(14px);
+	backdrop-filter: blur(14px);
+	border-color: var(--al-line);
+}
+
+html[data-al-page] nav[aria-label="Primary"] button > span {
+	font: 500 11.5px/1.2 var(--al-sans);
+	color: var(--al-meta);
+}
+
+html[data-al-page] nav[aria-label="Primary"] button > svg {
+	box-sizing: content-box;
+	width: 22px;
+	height: 22px;
+	padding: 4px 16px;
+	border-radius: 999px;
+	color: var(--al-meta);
+}
+
+html[data-al-page] nav[aria-label="Primary"] button[aria-current="page"] > svg {
+	background: var(--al-fill);
+	color: var(--al-accent);
+}
+
+html[data-al-page] nav[aria-label="Primary"] button[aria-current="page"] > span {
+	color: var(--al-ink);
+	font-weight: 600;
+}
+
+html[data-al-page] nav[aria-label="Primary"] button[aria-current="page"] [data-testid="you-tab-avatar"] {
+	border-radius: 999px;
+	box-shadow: 0 0 0 2px var(--al-bg), 0 0 0 3.5px var(--al-accent);
 }
 
 /* Learners do not need the learning streak, the profile prompt or the "Powered by" mark. */
-html:not([data-al-staff="1"]) button.bg-surface-amber-2[aria-label^="View learning streak"],
+html[data-al-page]:not([data-al-staff="1"]) button.bg-surface-amber-2[aria-label^="View learning streak"],
 html[data-al-page="home"]:not([data-al-staff="1"]) button.bg-surface-amber-2.rounded-md.px-2.py-1 {
 	display: none !important;
 }
 
-.bg-surface-sidebar .shadow-sm.rounded-md:has(.lucide-user),
-.bg-surface-sidebar a.justify-center:has(> .lucide-user),
-.bg-surface-sidebar .lucide-zap {
+html[data-al-page] .bg-surface-sidebar .shadow-sm.rounded-md:has(.lucide-user),
+html[data-al-page] .bg-surface-sidebar a.justify-center:has(> .lucide-user),
+html[data-al-page] .bg-surface-sidebar .lucide-zap {
 	display: none !important;
 }
 
-/* Course page: "Published" is a note for staff. */
+/* ------------------------------------------------------------------------------------------------
+   Course page.
+   ------------------------------------------------------------------------------------------------ */
+
+/* The glow behind the top, and the content in the website's container. */
+html[data-al-page="course"] div:has(> div > aside) {
+	padding: clamp(28px, 4vw, 56px) var(--al-gutter) 72px;
+	background-image: var(--al-fade), var(--al-glow);
+	background-size: 100% 620px;
+	background-repeat: no-repeat;
+}
+
+html[data-al-page="course"] div:has(> div > aside) > * {
+	max-width: var(--al-container);
+	margin-inline: auto;
+}
+
+html[data-al-page="course"] div:has(> aside) {
+	gap: clamp(32px, 4vw, 56px);
+}
+
+@media (min-width: 768px) {
+	html[data-al-page="course"] .md\:w-2\/3 {
+		flex: 1 1 auto;
+		width: auto;
+	}
+
+	html[data-al-page="course"] aside.sticky {
+		width: clamp(300px, 28vw, 372px);
+		top: calc(var(--header-frame-h) + 24px);
+	}
+}
+
+/* Hero. */
+html[data-al-page="course"] section:has(> h1)::before {
+	content: "Course";
+	margin-bottom: 14px;
+}
+
+html[data-al-page="course"] section > h1.text-4xl-semibold {
+	font-size: clamp(40px, 4.6vw, 64px);
+	line-height: 1.04;
+	letter-spacing: -0.012em;
+}
+
+html[data-al-page="course"] section:has(> h1) > h1 + div {
+	font-size: 15px;
+	color: var(--al-ink-3);
+}
+
+html[data-al-page="course"] section:has(> h1) > p {
+	max-width: 62ch;
+	font-size: clamp(17px, 1.5vw, 20px);
+	line-height: 1.6;
+	color: var(--al-muted);
+}
+
+html[data-al-page="course"] section:has(> h1) > .md\:hidden {
+	padding-top: 12px;
+}
+
+/* No learner count and no average rating for learners. The hero rules stop at the hero, so the
+   stars inside written reviews stay. Staff keep every count. */
+html[data-al-page="course"]:not([data-al-staff="1"]) section:has(> h1) div:has(> .lucide-users-round),
+html[data-al-page="course"]:not([data-al-staff="1"]) section:has(> h1) div:has(> .lucide-users-round) + .lucide-dot,
+html[data-al-page="course"]:not([data-al-staff="1"]) section:has(> h1) div:has(> svg.fill-yellow-500),
+html[data-al-page="course"]:not([data-al-staff="1"]) section:has(> h1) div:has(> svg.fill-yellow-500) + .lucide-dot,
+html[data-al-page]:not([data-al-staff="1"]) .min-w-80.max-w-sm div:has(> .lucide-users) {
+	display: none !important;
+}
+
+/* "Published" is a note for staff. */
 html[data-al-page="course"]:not([data-al-staff="1"]) header.header-frame .rounded-full.bg-surface-green-2,
 html[data-al-page="course"]:not([data-al-staff="1"]) header.header-frame .rounded-full.text-ink-green-8 {
 	display: none !important;
 }
 
+/* The product card, beside the content on desktop and under the introduction on phones. */
+html[data-al-page="course"] .min-w-80.max-w-sm {
+	width: 100%;
+	min-width: 0;
+	max-width: none;
+	overflow: hidden;
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+	box-shadow: var(--al-shadow-lift);
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm > .p-5 {
+	padding: 28px;
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm .p-5 > .text-3xl-semibold:first-child {
+	margin-bottom: 22px;
+	font: 400 44px/1 var(--al-serif);
+	letter-spacing: -0.01em;
+	color: var(--al-ink);
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm .p-5 > div:not(.text-3xl-semibold) {
+	display: grid;
+	gap: 10px;
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm .p-5 > div:not(.text-3xl-semibold) > .mb-8 {
+	margin-bottom: 0;
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm .p-5 button.w-full {
+	height: 48px;
+	margin-bottom: 0;
+	padding-inline: 24px;
+	font: 500 15px/1 var(--al-sans);
+}
+
+/* The leading icon gives way to the website's trailing arrow. */
+html[data-al-page="course"] .min-w-80.max-w-sm .p-5 button.w-full > span[class^="lucide-"]:first-child {
+	display: none;
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm .p-5 button.w-full.bg-surface-gray-10::after {
+	content: "";
+	flex: none;
+	width: 16px;
+	height: 16px;
+	background: currentColor;
+	-webkit-mask: var(--al-icon-arrow) center / 16px no-repeat;
+	mask: var(--al-icon-arrow) center / 16px no-repeat;
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm section {
+	margin-top: 24px;
+	padding-top: 22px;
+	border-top: 1px solid var(--al-line);
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm section > div:first-child {
+	margin-bottom: 4px;
+	font: 500 12px/1.4 var(--al-sans);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--al-meta);
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm section > div:not(:first-child) {
+	font-size: 15px;
+	color: var(--al-ink-2);
+}
+
+html[data-al-page="course"] .min-w-80.max-w-sm section [class^="lucide-"] {
+	color: var(--al-accent);
+}
+
+/* Course creator: a quiet card. */
+html[data-al-page="course"] aside > div:not(.min-w-80) {
+	padding: 24px;
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+}
+
+html[data-al-page="course"] aside > div:not(.min-w-80) .uppercase {
+	font: 500 12px/1.4 var(--al-sans);
+	letter-spacing: 0.16em;
+	color: var(--al-meta);
+}
+
+html[data-al-page="course"] aside > div:not(.min-w-80) .font-medium.truncate {
+	font: 400 22px/1.2 var(--al-serif);
+	color: var(--al-ink);
+}
+
+/* Course content: one card per chapter. */
+html[data-al-page="course"] .md\:w-2\/3 section > div:has(> h2) {
+	align-items: baseline;
+	margin-bottom: 20px;
+}
+
+html[data-al-page="course"] .md\:w-2\/3 section > div:has(> h2) > .text-base {
+	font-size: 14px;
+	color: var(--al-meta);
+}
+
+html[data-al-page="course"] .md\:w-2\/3 section > .border.rounded-md:has(.chapter-item),
+html[data-al-page="course"] .md\:w-2\/3 section > .border.rounded-md:has(.chapter-item) > div {
+	border: 0;
+	padding: 0;
+	background: none;
+}
+
+html[data-al-page="course"] div:has(> .chapter-item) {
+	display: grid;
+	gap: 16px;
+	counter-reset: al-chapter;
+}
+
+html[data-al-page="course"] .chapter-item {
+	counter-increment: al-chapter;
+	counter-reset: al-lesson;
+	padding: clamp(18px, 2.4vw, 28px) clamp(18px, 2.6vw, 32px);
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+	box-shadow: var(--al-shadow);
+}
+
+html[data-al-page="course"] .chapter-item > button {
+	padding: 0;
+	gap: 12px;
+	align-items: flex-end;
+}
+
+/* The chevron moves to the end of the header row. */
+html[data-al-page="course"] .chapter-item > button > span:first-child {
+	order: 3;
+	margin-bottom: 5px;
+	color: var(--al-meta);
+}
+
+/* On a phone a chip and the count go under the title, so the title keeps the width. */
+@media (max-width: 639px) {
+	html[data-al-page="course"] .chapter-item[data-al-chip] > button {
+		flex-wrap: wrap;
+		row-gap: 12px;
+	}
+
+	html[data-al-page="course"] .chapter-item[data-al-chip] > button > div:nth-child(2) {
+		flex: 1 1 calc(100% - 40px);
+	}
+
+	html[data-al-page="course"] .chapter-item[data-al-chip] > button > span:first-child {
+		order: 1;
+	}
+
+	html[data-al-page="course"] .chapter-item[data-al-chip] > button > div:nth-child(3) {
+		order: 2;
+		flex-basis: 100%;
+	}
+}
+
+
+html[data-al-page="course"] .chapter-item > button > div:nth-child(2) {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+}
+
+html[data-al-page="course"] .chapter-item > button > div:nth-child(2)::before {
+	content: "Chapter " counter(al-chapter);
+}
+
+html[data-al-page="course"] .chapter-item > button .truncate {
+	white-space: normal;
+	overflow: visible;
+	font: 400 clamp(22px, 2.1vw, 28px)/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page="course"] .chapter-item > button > div:nth-child(3) {
+	gap: 10px;
+	margin: 0;
+}
+
+/* The lesson count, as a quiet number. */
+html[data-al-page="course"] .chapter-item > button > div:nth-child(3) > .text-sm {
+	font-size: 13.5px;
+	color: var(--al-meta);
+}
+
+/* Chips from the script: "Free preview" or "Opens when you buy". */
+html[data-al-page="course"] .chapter-item[data-al-chip] > button > div:nth-child(3)::before {
+	display: inline-flex;
+	align-items: center;
+	min-height: 26px;
+	padding: 3px 11px;
+	border-radius: var(--al-radius-sm);
+	font: 500 12.5px/1.35 var(--al-sans);
+	white-space: nowrap;
+}
+
+html[data-al-page="course"] .chapter-item[data-al-chip="preview"] > button > div:nth-child(3)::before {
+	content: "Free preview";
+	background: var(--al-fill);
+	color: var(--al-ink-2);
+}
+
+html[data-al-page="course"] .chapter-item[data-al-chip="locked"] > button > div:nth-child(3)::before {
+	content: "Opens when you buy";
+	border: 1px solid var(--al-line-strong);
+	color: var(--al-muted);
+}
+
+/* Lesson rows, numbered within the chapter as the lesson view's "Chapter N · Lesson M" counts them. */
+html[data-al-page="course"] .chapter-item [data-chapter] {
+	margin-top: 18px;
+	border-top: 1px solid var(--al-line);
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson {
+	counter-increment: al-lesson;
+	padding: 14px 0;
+	border-bottom: 1px solid var(--al-line);
+	border-radius: 0;
+	background: none;
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson > * > div {
+	gap: 12px;
+	font-size: 16px;
+	line-height: 1.4;
+	color: var(--al-ink-2);
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson > * > div::before {
+	content: counter(al-lesson);
+	flex: none;
+	width: 1.6em;
+	font: 400 20px/1 var(--al-serif);
+	color: var(--al-accent);
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson a:hover > div {
+	color: var(--al-ink);
+}
+
+/* Only quizzes, videos, assignments and exercises keep a type icon, at the end of the row. */
+html[data-al-page="course"] .chapter-item .outline-lesson .lucide-file-text {
+	display: none;
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson :is(.lucide-help-circle, .lucide-monitor-play, .lucide-notebook-pen, .lucide-square-code) {
+	order: 3;
+	flex: none;
+	margin-inline-start: auto;
+	margin-inline-end: 0;
+	color: var(--al-soft);
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson .lucide-check {
+	order: 4;
+	flex: none;
+	margin-inline-start: auto;
+	color: var(--al-accent);
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson :is(.lucide-help-circle, .lucide-monitor-play, .lucide-notebook-pen, .lucide-square-code) ~ .lucide-check {
+	margin-inline-start: 0;
+}
+
+/* Locks from the script, on lessons that open only after purchase. */
+html[data-al-page="course"] .chapter-item .outline-lesson a[data-al-locked] > div::after {
+	content: "";
+	order: 5;
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-inline-start: auto;
+	background: var(--al-soft);
+	-webkit-mask: var(--al-icon-lock) center / 16px no-repeat;
+	mask: var(--al-icon-lock) center / 16px no-repeat;
+}
+
+html[data-al-page="course"] .chapter-item .outline-lesson a[data-al-locked] > div:has(:is(.lucide-help-circle, .lucide-monitor-play, .lucide-notebook-pen, .lucide-square-code))::after {
+	margin-inline-start: 0;
+}
+
+/* About this course. */
+html[data-al-page="course"] .md\:w-2\/3 .ProseMirror.prose {
+	font-size: 17px;
+	line-height: 1.65;
+	color: var(--al-ink-2);
+	--tw-prose-body: var(--al-ink-2);
+	--tw-prose-headings: var(--al-ink);
+	--tw-prose-bold: var(--al-ink);
+	--tw-prose-bullets: var(--al-accent);
+	--tw-prose-counters: var(--al-accent);
+	--tw-prose-links: var(--al-accent);
+}
+
+html[data-al-page="course"] .md\:w-2\/3 .ProseMirror.prose :is(h2, h3) {
+	margin-top: 1.6em;
+	margin-bottom: 0.5em;
+	font: 400 clamp(22px, 2.2vw, 28px)/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+/* "What you'll learn": the description's first list becomes a card with check marks. A description
+   with no list draws no card. */
+html[data-al-page="course"] .md\:w-2\/3 .ProseMirror.prose ul:first-of-type {
+	list-style: none;
+	margin: 16px 0 32px;
+	padding: clamp(20px, 2.6vw, 32px);
+	columns: 2 280px;
+	column-gap: 32px;
+	background: var(--al-wash);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+}
+
+html[data-al-page="course"] .md\:w-2\/3 .ProseMirror.prose ul:first-of-type > li {
+	position: relative;
+	break-inside: avoid;
+	margin: 0 0 12px;
+	padding-inline-start: 30px;
+	color: var(--al-ink-2);
+}
+
+html[data-al-page="course"] .md\:w-2\/3 .ProseMirror.prose ul:first-of-type > li:last-child {
+	margin-bottom: 0;
+}
+
+html[data-al-page="course"] .md\:w-2\/3 .ProseMirror.prose ul:first-of-type > li::before {
+	content: "";
+	position: absolute;
+	inset-inline-start: 0;
+	top: 0.3em;
+	width: 18px;
+	height: 18px;
+	background: var(--al-accent);
+	-webkit-mask: var(--al-icon-check) center / 18px no-repeat;
+	mask: var(--al-icon-check) center / 18px no-repeat;
+}
+
+/* "Try the free lessons", added by the script after the buy button. */
+html[data-al-page] .al-free-lessons {
+	width: 100%;
+}
+
 /* Course page for an enrolled learner: the course to continue, not the offer.
-   The second selector of each pair needs no script: an enrolled learner's card links to a lesson. */
+   The second selector of each pair needs no script: an enrolled learner's card links to a lesson.
+   The script's own link to the free lessons does not count. */
 html[data-al-page="course"][data-al-enrolled="1"] .min-w-80.max-w-sm .p-5 > .text-3xl-semibold:first-child,
-.min-w-80.max-w-sm:has(a[href*="/learn/"]) .p-5 > .text-3xl-semibold:first-child {
+.min-w-80.max-w-sm:has(a[href*="/learn/"]:not([data-al-added])) .p-5 > .text-3xl-semibold:first-child {
 	display: none !important;
 }
 
 html[data-al-page="course"][data-al-enrolled="1"] .md\:w-2\/3 div:has(> .lucide-users-round),
 html[data-al-page="course"][data-al-enrolled="1"] .md\:w-2\/3 div:has(> .lucide-users-round) + .lucide-dot,
 html[data-al-page="course"][data-al-enrolled="1"] .min-w-80.max-w-sm div:has(> .lucide-users),
-.min-w-80.max-w-sm:has(a[href*="/learn/"]) div:has(> .lucide-users) {
+.min-w-80.max-w-sm:has(a[href*="/learn/"]:not([data-al-added])) div:has(> .lucide-users) {
 	display: none !important;
 }
 
-/* Reviews with none written yet: hide "0 course rating & 0 user ratings" and keep "Write a Review",
-   so that learners can leave the first ones. */
-html[data-al-page="course"] .md\:w-2\/3 > div.mt-12:not(:has(article)) > div:first-child {
+/* Progress line from the script, in the card of an enrolled learner. */
+html[data-al-page] .al-progress {
+	display: grid;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+html[data-al-page] .al-progress-text {
+	font-size: 14px;
+	color: var(--al-ink-2);
+}
+
+html[data-al-page] .al-progress-track {
+	height: 6px;
+	border-radius: 999px;
+	background: var(--al-track);
+	overflow: hidden;
+}
+
+html[data-al-page] .al-progress-track > span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--al-accent);
+}
+
+/* Reviews: no average for learners. The header's first group is the star, the average and the
+   count. "Write a Review" and every written review stay. */
+html[data-al-page="course"]:not([data-al-staff="1"]) .md\:w-2\/3 > div.mt-12 > div:first-child > div:first-child {
+	display: none !important;
+}
+
+html[data-al-page="course"] .md\:w-2\/3 > div.mt-12 > div:first-child {
 	justify-content: flex-start;
-	margin-bottom: 0;
+	margin-bottom: 24px;
 }
 
-html[data-al-page="course"] .md\:w-2\/3 > div.mt-12:not(:has(article)) > div:first-child > div:first-child {
+html[data-al-page="course"] .md\:w-2\/3 > div.mt-12 > div:first-child > button {
+	height: 40px;
+	padding-inline: 18px;
+	font: 500 14px/1 var(--al-sans);
+}
+
+html[data-al-page="course"] .md\:w-2\/3 > div.mt-12 article {
+	padding: 24px;
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+}
+
+html[data-al-page="course"] .md\:w-2\/3 > div.mt-12 article svg.fill-yellow-500 {
+	fill: var(--al-accent);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Lessons.
+   ------------------------------------------------------------------------------------------------ */
+
+/* A fixed outline column, so the reading column keeps its measure on wide screens. */
+@media (min-width: 768px) {
+	html[data-al-page="lesson"] div.grid:has(> aside) {
+		grid-template-columns: minmax(0, 1fr) clamp(260px, 30%, 360px);
+	}
+}
+
+/* The reading column of about 70 characters and the notes block under it. */
+html[data-al-page="lesson"] .bg-surface-base.min-w-0 > div > .px-5,
+html[data-al-page="lesson"] .bg-surface-base.min-w-0 > div > .border-t {
+	max-width: var(--al-measure);
+	margin-inline: auto;
+	padding-inline: var(--al-gutter);
+	box-sizing: content-box;
+}
+
+html[data-al-page="lesson"] .bg-surface-base.min-w-0 > div > .px-5 {
+	padding-top: clamp(16px, 3vw, 40px);
+}
+
+html[data-al-page="lesson"] .bg-surface-base.min-w-0 > div > .border-t {
+	box-sizing: border-box;
+	width: min(var(--al-measure), calc(100% - 2 * var(--al-gutter)));
+	max-width: none;
+	margin-top: 56px;
+	padding-inline: 0;
+	border-color: var(--al-line);
+}
+
+/* Title row: the buttons become a small toolbar above a full-width title. */
+@media (min-width: 768px) {
+	html[data-al-page="lesson"] .px-5 > div:has(> div > h1.text-4xl-semibold) {
+		flex-direction: column-reverse;
+		align-items: stretch;
+		gap: 24px;
+	}
+
+	html[data-al-page="lesson"] .px-5 > div:has(> div > h1.text-4xl-semibold) > div:last-child:not(:first-child) {
+		align-self: flex-end;
+		margin-top: 0;
+	}
+}
+
+/* The eyebrow takes its words from the script. Without them, nothing is drawn. */
+html[data-al-page="lesson"] .px-5 div:has(> h1.text-4xl-semibold)::before {
+	content: var(--al-lesson-label, none);
+	margin-bottom: 14px;
+}
+
+html[data-al-page="lesson"] h1.text-4xl-semibold {
+	font-size: clamp(34px, 3.4vw, 48px);
+	line-height: 1.08;
+	letter-spacing: -0.01em;
+}
+
+html[data-al-page="lesson"] .px-5 > div:has(> span .avatar) {
+	margin-top: 16px;
+	font-size: 14px;
+	color: var(--al-meta);
+}
+
+/* Reading text at the website's body size. The Learning app sets it at 14px. */
+html[data-al-page="lesson"] .ProseMirror.prose,
+html[data-al-page] .ProseMirror.prose:has(> #editor) {
+	font-size: 1.0625rem;
+	line-height: 1.7;
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose {
+	color: var(--al-ink-2);
+	--tw-prose-body: var(--al-ink-2);
+	--tw-prose-headings: var(--al-ink);
+	--tw-prose-bold: var(--al-ink);
+	--tw-prose-links: var(--al-accent);
+	--tw-prose-bullets: var(--al-accent);
+	--tw-prose-counters: var(--al-accent);
+	--tw-prose-quote-borders: var(--al-accent);
+}
+
+html[data-al-page="lesson"] .px-5 > .ProseMirror.prose {
+	margin-top: 32px;
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose :is(h1, h2, h3, .ce-header) {
+	font-family: var(--al-serif);
+	font-weight: 400;
+	line-height: 1.15;
+	letter-spacing: -0.005em;
+	color: var(--al-ink);
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose :is(h2, h2.ce-header) {
+	font-size: clamp(26px, 2.4vw, 32px);
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose :is(h3, h3.ce-header) {
+	font-size: 24px;
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose a {
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose :is(img, video, iframe) {
+	border-radius: var(--al-radius-media);
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose pre {
+	background: var(--al-wash);
+	color: var(--al-ink-2);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius-sm);
+	font-size: 14px;
+}
+
+html[data-al-page="lesson"] .ProseMirror.prose blockquote {
+	border-inline-start: 3px solid var(--al-accent);
+	font: 400 21px/1.4 var(--al-serif);
+	font-style: normal;
+	color: var(--al-ink);
+}
+
+/* The quiz, before it starts: a card with a tinted head. */
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden {
+	margin-top: 28px;
+	background: var(--al-card);
+	border-color: var(--al-line);
+	border-radius: var(--al-radius);
+	box-shadow: var(--al-shadow);
+}
+
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden > div:first-child {
+	padding: 28px 28px 22px;
+	background: var(--al-wash);
+}
+
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden h2 {
+	margin: 0;
+	font: 400 clamp(24px, 2.2vw, 28px)/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden .rounded-full {
+	background: var(--al-fill);
+	color: var(--al-ink-2);
+}
+
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden > .border-t {
+	border-color: var(--al-line);
+}
+
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden > .border-t > div {
+	padding-inline: 28px;
+	border-color: var(--al-line);
+}
+
+html[data-al-page="lesson"] .ce-block .border.rounded-xl.overflow-hidden button.rounded-4 {
+	height: 44px;
+	padding-inline: 24px;
+	font: 500 15px/1 var(--al-sans);
+}
+
+/* Outline column. */
+html[data-al-page="lesson"] aside.sticky {
+	top: var(--header-frame-h);
+	height: calc(100dvh - var(--header-frame-h));
+	background: var(--al-wash);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > div.border-b {
+	padding: 24px 24px 20px;
+	background: transparent;
+	border-color: var(--al-line);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > div.border-b > .text-lg-semibold {
+	font: 400 22px/1.2 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) svg.lucide-cloud-icon {
+	display: none;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > div.border-b > .text-sm {
+	font-size: 13px;
+	color: var(--al-meta);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > div.border-b > .rounded-full {
+	height: 6px;
+	margin-top: 10px;
+	background: var(--al-track);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > div.border-b > .rounded-full > div {
+	background: var(--al-accent);
+	border-radius: inherit;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > ul {
+	padding: 12px;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) > ul > li > button {
+	padding: 10px 12px;
+	border-radius: 12px;
+	font-weight: 600;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) li li > :is(a, div, button) {
+	align-items: flex-start;
+	padding: 9px 12px 9px 36px;
+	border-radius: 12px;
+	font-size: 14px;
+	line-height: 1.4;
+	color: var(--al-ink-3);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) li li > :is(a, div, button) > svg {
+	margin-top: 1px;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) li li > :is(a, div, button) > svg:first-child {
+	color: var(--al-soft);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) li li .truncate {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	white-space: normal;
+	overflow: hidden;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) :is(li > button, li li > a):hover {
+	background: var(--al-fill-hover);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) svg.lucide-circle-icon {
+	color: var(--al-line-strong);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) svg.lucide-circle-check-icon {
+	color: var(--al-on-accent);
+	fill: var(--al-accent);
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) a[aria-current="page"] {
+	background: var(--al-fill);
+	color: var(--al-ink);
+	font-weight: 500;
+	box-shadow: inset 3px 0 0 var(--al-accent);
+}
+
+html[dir="rtl"][data-al-page="lesson"] div:has(> div.border-b + ul) a[aria-current="page"] {
+	box-shadow: inset -3px 0 0 var(--al-accent);
+}
+
+/* A learner who has not bought a paid course sees no "Completed 0%". On a phone the sheet has no
+   title, so the head goes. A free course keeps it: "Enroll Now" does not reload the page, so the
+   enrolment mark can be out of date there. A purchase always comes back with a full page load. */
+html[data-al-page="lesson"][data-al-paid="1"][data-al-enrolled="0"] div:has(> div.border-b + ul) > div.border-b > :not(.text-lg-semibold) {
+	display: none;
+}
+
+html[data-al-page="lesson"][data-al-paid="1"][data-al-enrolled="0"] div:has(> div.border-b + ul) > div.border-b:not(:has(> .text-lg-semibold)) {
+	display: none;
+}
+
+/* Locks from the script, in place of the empty ring. */
+html[data-al-page="lesson"] div:has(> div.border-b + ul) a[data-al-locked] svg.lucide-circle-icon {
+	display: none;
+}
+
+html[data-al-page="lesson"] div:has(> div.border-b + ul) a[data-al-locked]::after {
+	content: "";
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin-top: 2px;
+	background: var(--al-soft);
+	-webkit-mask: var(--al-icon-lock) center / 16px no-repeat;
+	mask: var(--al-icon-lock) center / 16px no-repeat;
+}
+
+/* Phone: the lesson bar and the Chapters button. */
+html[data-al-page="lesson"] button:is([aria-label="Previous lesson"], [aria-label="Next lesson"]) {
+	border-radius: 999px;
+}
+
+html[data-al-page="lesson"] div:has(> button[aria-label="Previous lesson"]) {
+	border-color: var(--al-line);
+}
+
+html[data-al-page="lesson"] div:has(> button[aria-label="Previous lesson"]) > div {
+	font-size: 13px;
+	color: var(--al-meta);
+}
+
+html[data-al-page="lesson"] button:has(> .lucide-layers) {
+	background: var(--al-button) !important;
+	color: var(--al-on-button) !important;
+	border-color: transparent !important;
+	box-shadow: var(--al-shadow-button) !important;
+}
+
+/* "Next lesson", added by the script after the lesson text. */
+html[data-al-page] .al-next {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 16px;
+	width: 100%;
+	margin-top: 48px;
+	padding: 22px 24px;
+	text-align: start;
+	font-family: var(--al-sans);
+	color: var(--al-ink);
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+	box-shadow: var(--al-shadow);
+	cursor: pointer;
+	transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+html[data-al-page] .al-next:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--al-shadow-lift);
+}
+
+html[data-al-page] .al-next-title {
+	display: block;
+	margin-top: 6px;
+	font: 400 clamp(22px, 2.1vw, 26px)/1.2 var(--al-serif);
+}
+
+html[data-al-page] .al-next-note {
+	display: block;
+	margin-top: 6px;
+	font-size: 14px;
+	color: var(--al-meta);
+}
+
+html[data-al-page] .al-next-arrow {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	background: var(--al-button);
+	color: var(--al-on-button);
+}
+
+html[data-al-page] .al-next-arrow::before {
+	content: "";
+	width: 18px;
+	height: 18px;
+	background: currentColor;
+	-webkit-mask: var(--al-icon-arrow) center / 18px no-repeat;
+	mask: var(--al-icon-arrow) center / 18px no-repeat;
+}
+
+/* The lock card, on a lesson that opens only after purchase. */
+html[data-al-page="lesson"] .shadow.rounded-md.text-center:has(.lucide-lock-keyhole) {
+	width: min(560px, calc(100% - 32px));
+	margin: clamp(48px, 7vw, 72px) auto 32px;
+	padding: clamp(28px, 4vw, 44px);
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+	box-shadow: var(--al-shadow-lift);
+}
+
+html[data-al-page="lesson"] .shadow.rounded-md.text-center:has(.lucide-lock-keyhole) > div:first-child {
+	flex-direction: column;
+	gap: 14px;
+	margin-top: 0;
+}
+
+html[data-al-page="lesson"] .shadow.rounded-md.text-center .lucide-lock-keyhole {
+	width: 28px;
+	height: 28px;
+	color: var(--al-accent);
+}
+
+html[data-al-page="lesson"] .shadow.rounded-md.text-center:has(.lucide-lock-keyhole) .text-lg-semibold {
+	font: 400 clamp(26px, 2.6vw, 32px)/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page="lesson"] .shadow.rounded-md.text-center:has(.lucide-lock-keyhole) > div:nth-child(2) {
+	max-width: 44ch;
+	margin: 12px auto 26px;
+	font-size: 16px;
+	line-height: 1.55;
+	color: var(--al-muted);
+}
+
+html[data-al-page="lesson"] .shadow.rounded-md.text-center:has(.lucide-lock-keyhole) button {
+	min-width: 220px;
+	height: 48px;
+	padding-inline: 28px;
+	font: 500 15px/1 var(--al-sans);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Course cards: the catalogue, the home page and related courses share one card.
+   ------------------------------------------------------------------------------------------------ */
+
+/* Catalogue head. */
+html[data-al-page="courses"] div:has(> [data-testid="page-header-block"]) {
+	background-image: var(--al-fade), var(--al-glow);
+	background-size: 100% 420px;
+	background-repeat: no-repeat;
+	background-attachment: local;
+}
+
+html[data-al-page="courses"] [data-testid="page-header-block"] {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: calc(var(--al-container) + 2 * var(--al-gutter));
+	margin-inline: auto;
+	padding: clamp(28px, 4vw, 48px) var(--al-gutter) 24px;
+	border: 0;
+}
+
+html[data-al-page="courses"] [data-testid="page-header-block"] h1 {
+	font: 400 clamp(34px, 4vw, 52px)/1.06 var(--al-serif);
+	letter-spacing: -0.01em;
+	color: var(--al-ink);
+}
+
+html[data-al-page="courses"] [data-testid="page-header-block"] ~ div:has(> div.grid) {
+	padding-inline: var(--al-gutter);
+	padding-bottom: 56px;
+}
+
+html[data-al-page] input[aria-label="Search"] {
+	height: 40px;
+	padding-inline-start: 36px;
+	border-radius: 999px;
+	background: var(--al-card);
+	border-color: var(--al-line-strong);
+}
+
+html[data-al-page] input[aria-label="Search"]:focus {
+	border-color: var(--al-accent);
+	box-shadow: 0 0 0 4px rgba(91, 63, 214, 0.12);
+}
+
+html[data-al-page] div:has(> input[aria-label="Search"]) > div:first-child {
+	padding-inline-start: 13px;
+}
+
+/* The catalogue's category filter, as a pill beside the search field. */
+html[data-al-page] [data-testid="page-header-block"] [data-slot="trigger"] {
+	height: 40px;
+	padding-inline: 16px 12px;
+	border-radius: 999px;
+	background: var(--al-card);
+	border: 1px solid var(--al-line-strong);
+}
+
+/* Grids of course cards. */
+html[data-al-page] div.grid:has(> a > div > div > .short-introduction) {
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+	gap: clamp(16px, 2.2vw, 24px);
+	max-width: var(--al-container);
+	margin-inline: auto;
+}
+
+html[data-al-page] div.grid:has(> a:only-child > div > div > .short-introduction) {
+	grid-template-columns: minmax(0, 860px);
+	justify-content: start;
+}
+
+/* The card. */
+html[data-al-page] a > div:has(> div > .short-introduction) {
+	min-height: 0 !important;
+	overflow: hidden;
+	background: var(--al-card);
+	border: 1px solid var(--al-line);
+	border-radius: var(--al-radius);
+	box-shadow: var(--al-shadow);
+	transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+html[data-al-page] a:hover > div:has(> div > .short-introduction) {
+	transform: translateY(-3px);
+	box-shadow: var(--al-shadow-lift);
+}
+
+html[data-al-page] a > div:has(> div > .short-introduction) > div:first-child {
+	position: relative;
+	height: auto;
+	aspect-ratio: 16 / 9;
+	border: 0;
+	border-radius: 0;
+}
+
+/* No image: the website's glow in place of the dark gradient, and the title in the serif. */
+html[data-al-page] a > div:has(> div > .short-introduction) > div:first-child:has(> div) {
+	display: flex;
+	background-image: var(--al-panel) !important;
+	background-blend-mode: normal !important;
+	background-size: cover;
+	border-bottom: 1px solid var(--al-line);
+}
+
+html[data-al-page] a > div:has(> div > .short-introduction) > div:first-child > div {
+	align-items: flex-end;
+	justify-content: flex-start;
+	margin: 0;
+	padding: 24px;
+	text-align: start;
+	font: 400 clamp(24px, 2.1vw, 30px)/1.15 var(--al-serif);
+	letter-spacing: -0.005em;
+	text-wrap: balance;
+	color: var(--al-ink);
+}
+
+html[data-al-page] a > div:has(> div > .short-introduction) > div:last-child {
+	gap: 10px;
+	padding: 20px 24px 24px;
+	border: 0;
+}
+
+/* With an image, the title sits in the body. */
+html[data-al-page] a > div:has(> div > .short-introduction) > div:last-child > .font-semibold.leading-6 {
+	font: 400 clamp(22px, 2.1vw, 26px)/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+/* Counts row: only the lesson count stays for learners. */
+html[data-al-page] a > div:has(> div > .short-introduction) > div:last-child > div:first-child {
+	justify-content: flex-start;
+	gap: 14px;
+	margin: 0;
+	font-size: 13.5px;
+	color: var(--al-meta);
+}
+
+html[data-al-page]:not([data-al-staff="1"]) a > div:has(> div > .short-introduction) div:has(> span > .lucide-users),
+html[data-al-page]:not([data-al-staff="1"]) a > div:has(> div > .short-introduction) div:has(> span > svg.fill-yellow-500),
+html[data-al-page]:not([data-al-staff="1"]) a > div:has(> div > .short-introduction) .lucide-award {
 	display: none !important;
+}
+
+html[data-al-page] a .short-introduction {
+	margin: 0;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	overflow: hidden;
+	font-size: 15.5px;
+	line-height: 1.55;
+	color: var(--al-muted);
+}
+
+/* Progress for the learner's own course. */
+html[data-al-page] a .short-introduction + .rounded-full {
+	height: 6px;
+	margin-top: 6px;
+	background: var(--al-track);
+}
+
+html[data-al-page] a .short-introduction + .rounded-full > div {
+	height: 100%;
+	background: var(--al-accent);
+}
+
+html[data-al-page] a .short-introduction + .rounded-full + div {
+	margin: 0;
+	font-size: 13px;
+	color: var(--al-meta);
+}
+
+/* Footer: instructor and price. */
+html[data-al-page] a > div:has(> div > .short-introduction) > div:last-child > div:last-child {
+	margin-top: auto;
+	padding-top: 16px;
+	border-top: 1px solid var(--al-line);
+	font-size: 13.5px;
+	color: var(--al-meta);
+}
+
+html[data-al-page] a > div:has(> div > .short-introduction) > div:last-child > div:last-child .font-semibold {
+	font-size: 15px;
+	color: var(--al-ink);
+}
+
+/* A course the learner owns shows no price. */
+html[data-al-page] a > div:has(.short-introduction + .rounded-full) > div:last-child > div:last-child .font-semibold {
+	display: none;
+}
+
+/* A finished course carries "Completed". */
+html[data-al-page] a > div:has(.short-introduction + .rounded-full > [style*="width: 100%"]) > div:first-child::after {
+	content: "Completed";
+	position: absolute;
+	top: 16px;
+	inset-inline-start: 16px;
+	min-height: 26px;
+	padding: 3px 11px;
+	border-radius: var(--al-radius-sm);
+	background: var(--al-card);
+	color: var(--al-ink-2);
+	font: 500 12.5px/1.35 var(--al-sans);
+	box-shadow: var(--al-shadow);
+}
+
+/* The wide card: a lone course anywhere, and the home page's "Continue learning". */
+@media (min-width: 768px) {
+	html[data-al-page] div.grid > a:only-child > div:has(> div > .short-introduction),
+	html[data-al-page="home"][data-al-courses="1"] div.grid > a:first-child:has(.short-introduction + .rounded-full):not(:has([style*="width: 100%"])) > div {
+		flex-direction: row;
+	}
+
+	html[data-al-page] div.grid > a:only-child > div:has(> div > .short-introduction) > div:first-child,
+	html[data-al-page="home"][data-al-courses="1"] div.grid > a:first-child:has(.short-introduction + .rounded-full):not(:has([style*="width: 100%"])) > div > div:first-child {
+		flex: none;
+		width: 44%;
+		min-height: 260px;
+		aspect-ratio: auto;
+		border-bottom: 0;
+		border-inline-end: 1px solid var(--al-line);
+	}
+
+	html[data-al-page] div.grid > a:only-child > div:has(> div > .short-introduction) > div:last-child,
+	html[data-al-page="home"][data-al-courses="1"] div.grid > a:first-child:has(.short-introduction + .rounded-full):not(:has([style*="width: 100%"])) > div > div:last-child {
+		flex: 1 1 auto;
+		min-width: 0;
+		padding: 32px;
+	}
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Home: the learner's own courses, with "Continue learning" first.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page="home"] :is(#main-content, #scrollContainer) {
+	background-image: var(--al-fade), var(--al-glow);
+	background-size: 100% 420px;
+	background-repeat: no-repeat;
+	background-attachment: local;
+}
+
+html[data-al-page="home"] :is(#main-content, #scrollContainer) > div:has(h1.text-2xl-bold) {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: calc(var(--al-container) + 2 * var(--al-gutter));
+	margin-inline: auto;
+	padding: clamp(28px, 5vw, 64px) var(--al-gutter) 72px;
+}
+
+html[data-al-page="home"] h1.text-2xl-bold {
+	font-size: clamp(34px, 4vw, 52px);
+	line-height: 1.06;
+}
+
+html[data-al-page="home"] div:has(> h1.text-2xl-bold) + div {
+	margin-top: 10px;
+	font-size: 17px;
+	color: var(--al-muted);
+}
+
+html[data-al-page="home"][data-al-courses="0"]:not([data-al-staff="1"]) div:has(> h1.text-2xl-bold) + div {
+	display: none;
+}
+
+html[data-al-page="home"] h2 {
+	font: 400 clamp(26px, 2.6vw, 34px)/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page="home"] div:has(> h2 + a) {
+	align-items: baseline;
+	margin-bottom: 20px;
+}
+
+html[data-al-page="home"] h2 + a span {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--al-ink);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+/* "Continue learning": the first of the learner's own courses, when it is not finished. */
+html[data-al-page="home"][data-al-courses="1"] div.grid > a:first-child:has(.short-introduction + .rounded-full):not(:has([style*="width: 100%"])) {
+	grid-column: 1 / -1;
+}
+
+html[data-al-page="home"][data-al-courses="1"] div.grid > a:first-child:has(.short-introduction + .rounded-full):not(:has([style*="width: 100%"])) > div > div:last-child::before {
+	content: "Continue learning";
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Notifications panel.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) {
+	background: var(--al-card);
+	border-inline-end: 1px solid var(--al-line);
+	box-shadow: var(--al-shadow-lift) !important;
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .text-md.font-medium {
+	padding: 20px 20px 12px;
+	font: 400 26px/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .tab-buttons {
+	padding-inline: 20px;
+	padding-bottom: 10px;
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .tab-buttons > div {
+	display: flex;
+	width: 100%;
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .tab-buttons [data-slot="tab-button"] {
+	flex: 1 1 0;
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .tab-buttons [data-slot="tab-button"] > span {
+	width: 100%;
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .divide-y {
+	border-top: 1px solid var(--al-line);
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .divide-y > div {
+	padding: 14px 20px;
+	font-size: 14.5px;
+	line-height: 1.5;
+	color: var(--al-ink-2);
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .divide-y > div:hover {
+	background: var(--al-wash);
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .divide-y strong {
+	color: var(--al-ink);
+	font-weight: 600;
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .divide-y .text-p-sm {
+	margin-top: 2px;
+	font-size: 12.5px;
+	color: var(--al-meta);
+}
+
+html[data-al-page] body > div.fixed:has(> div > .tab-buttons) .rounded-full.bg-surface-gray-7 {
+	width: 7px;
+	height: 7px;
+	background: var(--al-accent);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Profile.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page="profile"] .h-\[130px\] > .bg-surface-gray-2 {
+	background: var(--al-band);
+}
+
+html[data-al-page="profile"] .border-4.border-white {
+	border-color: var(--al-bg);
+	box-shadow: var(--al-shadow);
+}
+
+html[data-al-page="profile"] .border-4.border-white:not(:has(img)) {
+	background: var(--al-fill);
+	color: var(--al-accent);
+	font: 400 44px/1 var(--al-serif);
+}
+
+html[data-al-page="profile"] div:has(> h1.text-4xl-semibold) > h1 + .text-base {
+	font-size: 16px;
+	color: var(--al-muted);
+}
+
+html[data-al-page="profile"] h2.text-lg-semibold {
+	font: 400 26px/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   You, the phone's account page.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page="you"] div:has(> [data-testid="mobile-page-body"]) {
+	background: var(--al-wash);
+}
+
+html[data-al-page="you"] [data-testid="you-profile"] > div:first-child {
+	background: var(--al-fill);
+	color: var(--al-accent);
+	font-family: var(--al-serif);
+	font-weight: 400;
+}
+
+html[data-al-page="you"] [data-testid="you-profile"] > div:nth-child(2) {
+	font: 400 28px/1.15 var(--al-serif);
+	color: var(--al-ink);
+}
+
+html[data-al-page="you"] [data-testid="you-profile"] > a {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+html[data-al-page="you"] [data-testid="mobile-page-body"] > div > span {
+	font: 500 12px/1.4 var(--al-sans);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--al-meta);
+}
+
+html[data-al-page="you"] [data-testid="mobile-page-body"] div:has(> button[aria-label="Log out"]) {
+	background: var(--al-card);
+	border-color: var(--al-line);
+	border-radius: var(--al-radius-md);
+	box-shadow: var(--al-shadow);
+}
+
+html[data-al-page="you"] [data-testid="mobile-page-body"] div:has(> button[aria-label="Log out"]) > button {
+	min-height: 52px;
+	border-color: var(--al-line);
+}
+
+/* ------------------------------------------------------------------------------------------------
+   Phone action bar, added by the script on the course page. It shows while the card's own button is
+   out of view, and sits under the Learning app's sheets and panels.
+   ------------------------------------------------------------------------------------------------ */
+
+html[data-al-page] .al-actionbar {
+	position: fixed;
+	inset-inline: 0;
+	bottom: 0;
+	z-index: 25;
+	display: none;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 12px 16px;
+	background: color-mix(in srgb, var(--al-card) 92%, transparent);
+	-webkit-backdrop-filter: blur(14px);
+	backdrop-filter: blur(14px);
+	border-top: 1px solid var(--al-line);
+	box-shadow: var(--al-shadow-bar);
+}
+
+html[data-al-page="course"][data-al-actionbar="1"] .al-actionbar {
+	display: flex;
+}
+
+html[data-al-page="course"][data-al-actionbar="1"] #scrollContainer {
+	padding-bottom: 76px;
+}
+
+html[data-al-page] .al-actionbar-price {
+	font: 400 28px/1 var(--al-serif);
+	color: var(--al-ink);
+	white-space: nowrap;
+}
+
+html[data-al-page] .al-actionbar-action {
+	flex: 1 1 auto;
+	max-width: 240px;
+	margin-inline-start: auto;
+	background: var(--al-button);
+	color: var(--al-on-button);
+	box-shadow: var(--al-shadow-button);
+}
+
+/* With no price, the button takes the whole bar. */
+html[data-al-page] .al-actionbar-price[hidden] + .al-actionbar-action {
+	max-width: none;
+	margin-inline-start: 0;
+}
+
+/* Motion only for people who allow it. */
+@media (prefers-reduced-motion: reduce) {
+	html[data-al-page] .al-next,
+	html[data-al-page] a > div:has(> div > .short-introduction) {
+		transition: none;
+		transform: none !important;
+	}
 }
